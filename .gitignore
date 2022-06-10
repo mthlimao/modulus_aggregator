@@ -1,0 +1,9 @@
+# Setuptools Build Files
+./build/*
+
+# Setuptools Linking Files
+./source/python/core.egg-info/*
+
+# Python projects
+*.pyc
+*.pyo
