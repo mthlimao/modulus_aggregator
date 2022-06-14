@@ -1,6 +1,6 @@
 import click
 from modulus_aggregator.constants import VERSION, REPO_LINK
-from modulus_aggregator.tags_exporter import export
+from modulus_aggregator.export.export import export
 
 
 @click.group()

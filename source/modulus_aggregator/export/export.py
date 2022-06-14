@@ -23,42 +23,42 @@ def export():
               help="Option that enables exporting .csv file in pivot (wide) form. "
                    "In case it's not possible to export in pivot form, file is then "
                    "exported in standard format.")
-def tags(experiment_path, export_pivot):
+def tensors(experiment_path, export_pivot):
     """
-    This command export the registered tags (for now, just tensors) in a .csv file.
+    This command export the registered tensors in a .csv file.
     """
     try:
-        df_tags = None
+        df_tensors = None
         experiment_path = Path(experiment_path).resolve(strict=True)
         
         for run in os.listdir(experiment_path):
             run_path = experiment_path / run            
             if run_path.is_dir():
-                click.echo(f'Exporting tags for {run_path.name}...')
-                # Check events files (choose whichever has more tags/tensors)
-                number_tags = 0
+                click.echo(f'Exporting tensors for {run_path.name}...')
+                # Check events files (choose whichever has more tensors)
+                number_tensors = 0
                 ea_object = None
                 for event_file in [file for file in os.listdir(run_path) if 'events.out.tfevents' in file]:
                     f = run_path / event_file
                     ea = event_accumulator.EventAccumulator(f.as_posix()).Reload()
-                    if len(ea.Tags()['tensors']) > number_tags:
-                        number_tags = len(ea.Tags()['tensors'])
+                    if len(ea.Tags()['tensors']) > number_tensors:
+                        number_tensors = len(ea.Tags()['tensors'])
                         ea_object = ea
                 
                 df_run = write_to_dataframe(run_path, ea_object)
-                df_tags = pd.concat([df_tags, df_run], axis=0) if df_tags is not None else df_run        
+                df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run        
 
         if not export_pivot:
-            df_tags.to_csv(experiment_path / 'tags.csv', index=False)
-        else:            
-            df_tags_wide = return_pivoted_dataframe(df_tags)
-            if df_tags_wide.shape == df_tags.shape:
+            df_tensors.to_csv(experiment_path / 'tensors.csv', index=False, sep=';')
+        else:
+            df_tensors_wide = return_pivoted_dataframe(df_tensors)
+            if df_tensors_wide.shape == df_tensors.shape:
                 click.echo(WIDE_DF_NOT_POSSIBLE)
-                df_tags.to_csv(experiment_path / 'tags.csv', index=False)
+                df_tensors.to_csv(experiment_path / 'tensors.csv', index=False, sep=';')
             else:
-                df_tags_wide.to_csv(experiment_path / 'tags_pivoted.csv', index=False)
+                df_tensors_wide.to_csv(experiment_path / 'tensors_pivoted.csv', index=False, sep=';')
         
-        click.echo('Tags successfully exported.')
+        click.echo('Tensors successfully exported.')
     
     except FileNotFoundError:
         click.echo(RUN_PATH_NOT_FOUND)
@@ -68,8 +68,8 @@ def tags(experiment_path, export_pivot):
 
 
 def write_to_dataframe(run_path, event_accumulator_object):
-    # Iterate through tags (in current case, tensors)
-    tags_dict = {
+    # Iterate through tensors
+    tensors_dict = {
         'run' : [],
         'tag' : [],
         'step' : [],
@@ -80,24 +80,24 @@ def write_to_dataframe(run_path, event_accumulator_object):
     for t in event_accumulator_object.Tags()['tensors']:
         if len(event_accumulator_object.Tensors(t)[0].tensor_proto.float_val) > 0:
             for tensor_event in event_accumulator_object.Tensors(t):
-                tags_dict['run'].append(run_path.name)
-                tags_dict['tag'].append(t)
-                tags_dict['step'].append(tensor_event.step)
-                tags_dict['value'].append(tensor_event.tensor_proto.float_val[0])
-                tags_dict['wall_time'].append(tensor_event.wall_time)
+                tensors_dict['run'].append(run_path.name)
+                tensors_dict['tag'].append(t)
+                tensors_dict['step'].append(tensor_event.step)
+                tensors_dict['value'].append(tensor_event.tensor_proto.float_val[0])
+                tensors_dict['wall_time'].append(tensor_event.wall_time)
     
-    df_tags = pd.DataFrame(tags_dict)
+    df_tensors = pd.DataFrame(tensors_dict)
 
-    return df_tags
+    return df_tensors
 
 
-def return_pivoted_dataframe(df_tags):
+def return_pivoted_dataframe(df_tensors):
     # Pivot dataframe
     dfw_data_dict = {'run': [], 'step': [], 'wall_time':[]}
     dfw = pd.DataFrame(dfw_data_dict)
 
-    for tag in df_tags["tag"].unique():
-        df_tag = df_tags[df_tags['tag'] == tag]
+    for tag in df_tensors["tag"].unique():
+        df_tag = df_tensors[df_tensors['tag'] == tag]
 
         if dfw.shape[0] == 0:
             dfw['run'] = df_tag.loc[:, 'run']
@@ -107,6 +107,6 @@ def return_pivoted_dataframe(df_tags):
         if df_tag.loc[:, 'value'].values.shape[0] == dfw.shape[0]:
             dfw[tag] = df_tag.loc[:, 'value'].values
         else:            
-            return df_tags
+            return df_tensors
     
     return dfw
