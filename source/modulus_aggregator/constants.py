@@ -1,4 +1,5 @@
 VERSION = 0.1
+REPO_LINK = "https://github.com/mthlimao/modulus_aggregator"
 
 # Error Messages for tags exporter
 RUN_PATH_NOT_FOUND = "Experiment run path was not found."
