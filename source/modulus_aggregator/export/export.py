@@ -2,8 +2,8 @@ import os
 import click
 import pandas as pd
 from pathlib import Path
-from tensorboard.backend.event_processing import event_accumulator
 from modulus_aggregator.constants import RUN_PATH_NOT_FOUND, EXPORT_ERROR, WIDE_DF_NOT_POSSIBLE
+from modulus_aggregator.utils import return_event_accumulator_object
 
 
 @click.group()
@@ -34,16 +34,8 @@ def tensors(experiment_path, export_pivot):
         for run in os.listdir(experiment_path):
             run_path = experiment_path / run            
             if run_path.is_dir():
-                click.echo(f'Exporting tensors for {run_path.name}...')
-                # Check events files (choose whichever has more tensors)
-                number_tensors = 0
-                ea_object = None
-                for event_file in [file for file in os.listdir(run_path) if 'events.out.tfevents' in file]:
-                    f = run_path / event_file
-                    ea = event_accumulator.EventAccumulator(f.as_posix()).Reload()
-                    if len(ea.Tags()['tensors']) > number_tensors:
-                        number_tensors = len(ea.Tags()['tensors'])
-                        ea_object = ea
+                click.echo(f'Exporting tensors for {run_path.name}...')                
+                ea_object = return_event_accumulator_object(run_path)
                 
                 df_run = write_to_dataframe(run_path, ea_object)
                 df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run        

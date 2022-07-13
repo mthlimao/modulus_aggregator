@@ -1,8 +1,8 @@
 import os
 import click
 from pathlib import Path
-from tensorboard.backend.event_processing import event_accumulator
 from modulus_aggregator.constants import RUN_PATH_NOT_FOUND
+from modulus_aggregator.utils import return_event_accumulator_object
 
 
 @click.command()
@@ -24,14 +24,7 @@ def show(experiment_path):
         for run in os.listdir(experiment_path):
             run_path = experiment_path / run            
             if run_path.is_dir():
-                number_tensors = 0
-                ea_object = None
-                for event_file in [file for file in os.listdir(run_path) if 'events.out.tfevents' in file]:
-                    f = run_path / event_file
-                    ea = event_accumulator.EventAccumulator(f.as_posix()).Reload()
-                    if len(ea.Tags()['tensors']) > number_tensors:
-                        number_tensors = len(ea.Tags()['tensors'])
-                        ea_object = ea
+                ea_object = return_event_accumulator_object(run_path)
                 
                 for tag_name, tag_values in ea_object.Tags().items():
                     if tag_values not in [[], False]:
