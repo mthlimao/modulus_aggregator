@@ -49,14 +49,14 @@ def tensors(experiment_path, export_pivot):
                 df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run        
 
         if not export_pivot:
-            df_tensors.to_csv(experiment_path / 'tensors.csv', index=False, sep=';')
+            df_tensors.to_csv(experiment_path / f'{experiment_path.name}_tensors.csv', index=False, sep=';')
         else:
             df_tensors_wide = return_pivoted_dataframe(df_tensors)
             if df_tensors_wide.shape == df_tensors.shape:
                 click.echo(WIDE_DF_NOT_POSSIBLE)
-                df_tensors.to_csv(experiment_path / 'tensors.csv', index=False, sep=';')
+                df_tensors.to_csv(experiment_path / f'{experiment_path.name}_tensors.csv', index=False, sep=';')
             else:
-                df_tensors_wide.to_csv(experiment_path / 'tensors_pivoted.csv', index=False, sep=';')
+                df_tensors_wide.to_csv(experiment_path / f'{experiment_path.name}_tensors_pivoted.csv', index=False, sep=';')
         
         click.echo('Tensors successfully exported.')
     
