@@ -1,6 +1,7 @@
 import click
 from modulus_aggregator.constants import VERSION, REPO_LINK
 from modulus_aggregator.export.export import export
+from modulus_aggregator.show.show import show
 
 
 @click.group()
@@ -29,3 +30,4 @@ def about():
 
 
 cli.add_command(export)
+cli.add_command(show)
