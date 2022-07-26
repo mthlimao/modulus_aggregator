@@ -30,7 +30,21 @@ def export():
                    "(--export_validation and --export_monitoring). "
                    "If there is no detected training tensors, "
                    "the command will warn the user and proceed as possible.")
-def tensors(models_path, export_pivot, export_training):
+@click.option('-ev', '--export_validation', is_flag=True, default=False,
+              help="Option that bounds the aggregator to only export validation related "
+                   "tensors in the output .csv file. "
+                   "This option can be used together with the other similar tags "
+                   "(--export_training and --export_monitoring). "
+                   "If there is no detected validation tensors, "
+                   "the command will warn the user and proceed as possible.")
+@click.option('-em', '--export_monitoring', is_flag=True, default=False,
+              help="Option that bounds the aggregator to only export monitoring related "
+                   "tensors in the output .csv file. "
+                   "This option can be used together with the other similar tags "
+                   "(--export_training and --export_validation). "
+                   "If there is no detected monitoring tensors, "
+                   "the command will warn the user and proceed as possible.")
+def tensors(models_path, export_pivot, export_training, export_validation, export_monitoring):
     """
     This command export the registered tensors in a .csv file.
     """
@@ -40,8 +54,13 @@ def tensors(models_path, export_pivot, export_training):
         filter_tensors_type = []
         output_file_name = f'{models_path.name}_tensors'
 
-        if export_training:
-            filter_tensors_type.append('Train')
+        if export_training or export_validation or export_monitoring:
+            if export_training:
+                filter_tensors_type.append('Train')
+            if export_validation:
+                filter_tensors_type.append('Validators')
+            if export_monitoring:
+                filter_tensors_type.append('Monitors')
 
         for filter_tensor in filter_tensors_type:
             output_file_name = output_file_name + f'_{filter_tensor.lower()}'
