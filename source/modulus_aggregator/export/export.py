@@ -50,8 +50,9 @@ def tensors(models_path, export_pivot, export_training, export_validation, expor
     """
     try:
         df_tensors = None
+        tensor_tags_lst, tensor_tags_unique_lst = None, None
         models_path = Path(models_path).resolve(strict=True)
-        filter_tensors_type = []
+        filter_tensors_type, filtered_tensors_type = [], []
         output_file_name = f'{models_path.name}_tensors'
 
         if export_training or export_validation or export_monitoring:
@@ -70,9 +71,22 @@ def tensors(models_path, export_pivot, export_training, export_validation, expor
             if run_path.is_dir():
                 click.echo(f'Exporting tensors for {run_path.name}...')                
                 ea_object = return_event_accumulator_object(run_path)
+
+                tensor_tags_lst = ea_object.Tags()['tensors'] if tensor_tags_lst is None else tensor_tags_lst + ea_object.Tags()['tensors']
                 
                 df_run = write_to_dataframe(run_path, ea_object, filter_tensors_type)
                 df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run
+            
+        tensor_tags_unique_lst = list(set(tensor_tags_lst))
+
+        for filter_tensor in filter_tensors_type:
+            for tensor_tag in tensor_tags_unique_lst:
+                if filter_tensor in tensor_tag:
+                    filtered_tensors_type.append(filter_tensor)
+                    break
+
+        if set(filter_tensors_type) != set(filtered_tensors_type):
+            click.echo(f"The following tensors types were not found in models: {', '.join(list(set(filter_tensors_type) - set(filtered_tensors_type)))}.")
 
         if not export_pivot:
             df_tensors.to_csv(models_path / f'{output_file_name}.csv', index=False, sep=';')
