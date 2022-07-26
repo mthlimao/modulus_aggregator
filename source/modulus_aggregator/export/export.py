@@ -23,13 +23,28 @@ def export():
               help="Option that enables exporting .csv file in pivoted (wide) form. "
                    "In case it's not possible to export in pivoted form, file is then "
                    "exported in standard format.")
-def tensors(models_path, export_pivot):
+@click.option('-et', '--export_training', is_flag=True, default=False,
+              help="Option that bounds the aggregator to only export training related "
+                   "tensors in the output .csv file. "
+                   "This option can be used together with the other similar tags "
+                   "(--export_validation and --export_monitoring). "
+                   "If there is no detected training tensors, "
+                   "the command will warn the user and proceed as possible.")
+def tensors(models_path, export_pivot, export_training):
     """
     This command export the registered tensors in a .csv file.
     """
     try:
         df_tensors = None
         models_path = Path(models_path).resolve(strict=True)
+        filter_tensors_type = []
+        output_file_name = f'{models_path.name}_tensors'
+
+        if export_training:
+            filter_tensors_type.append('Train')
+
+        for filter_tensor in filter_tensors_type:
+            output_file_name = output_file_name + f'_{filter_tensor.lower()}'
         
         for run in os.listdir(models_path):
             run_path = models_path / run            
@@ -37,18 +52,18 @@ def tensors(models_path, export_pivot):
                 click.echo(f'Exporting tensors for {run_path.name}...')                
                 ea_object = return_event_accumulator_object(run_path)
                 
-                df_run = write_to_dataframe(run_path, ea_object)
-                df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run        
+                df_run = write_to_dataframe(run_path, ea_object, filter_tensors_type)
+                df_tensors = pd.concat([df_tensors, df_run], axis=0) if df_tensors is not None else df_run
 
         if not export_pivot:
-            df_tensors.to_csv(models_path / f'{models_path.name}_tensors.csv', index=False, sep=';')
+            df_tensors.to_csv(models_path / f'{output_file_name}.csv', index=False, sep=';')
         else:
             df_tensors_wide = return_pivoted_dataframe(df_tensors)
             if df_tensors_wide.shape == df_tensors.shape:
                 click.echo(WIDE_DF_NOT_POSSIBLE)
-                df_tensors.to_csv(models_path / f'{models_path.name}_tensors.csv', index=False, sep=';')
+                df_tensors.to_csv(models_path / f'{output_file_name}.csv', index=False, sep=';')
             else:
-                df_tensors_wide.to_csv(models_path / f'{models_path.name}_tensors_pivoted.csv', index=False, sep=';')
+                df_tensors_wide.to_csv(models_path / f'{output_file_name}_pivoted.csv', index=False, sep=';')
         
         click.echo('Tensors successfully exported.')
     
@@ -59,7 +74,7 @@ def tensors(models_path, export_pivot):
         click.echo(EXPORT_ERROR)
 
 
-def write_to_dataframe(run_path, event_accumulator_object):
+def write_to_dataframe(run_path, event_accumulator_object, filter_tensors_type):
     # Iterate through tensors
     tensors_dict = {
         'run' : [],
@@ -68,15 +83,26 @@ def write_to_dataframe(run_path, event_accumulator_object):
         'value' : [],
         'wall_time' : [],
     }
+    tag_in_filter = True
+
+    if type(filter_tensors_type) != list:
+        filter_tensors_type = []    
 
     for t in event_accumulator_object.Tags()['tensors']:
         if len(event_accumulator_object.Tensors(t)[0].tensor_proto.float_val) > 0:
-            for tensor_event in event_accumulator_object.Tensors(t):
-                tensors_dict['run'].append(run_path.name)
-                tensors_dict['tag'].append(t)
-                tensors_dict['step'].append(tensor_event.step)
-                tensors_dict['value'].append(tensor_event.tensor_proto.float_val[0])
-                tensors_dict['wall_time'].append(tensor_event.wall_time)
+            if len(filter_tensors_type) > 0:
+                tag_in_filter = False
+                for filter_tensor in filter_tensors_type:
+                    if filter_tensor in t:
+                        tag_in_filter = True
+            
+            if tag_in_filter:
+                for tensor_event in event_accumulator_object.Tensors(t):
+                    tensors_dict['run'].append(run_path.name)
+                    tensors_dict['tag'].append(t)
+                    tensors_dict['step'].append(tensor_event.step)
+                    tensors_dict['value'].append(tensor_event.tensor_proto.float_val[0])
+                    tensors_dict['wall_time'].append(tensor_event.wall_time)
     
     df_tensors = pd.DataFrame(tensors_dict)
 

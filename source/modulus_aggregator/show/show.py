@@ -30,7 +30,7 @@ def show(models_path):
                     if tag_values not in [[], False]:
                         click.echo(f"Showing {tag_name}:")
                         click.echo(f"{', '.join(tag_values)}")
-                
+                        click.echo()                
                 break
 
     except FileNotFoundError:
