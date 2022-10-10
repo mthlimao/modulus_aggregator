@@ -6,7 +6,6 @@ import pandas as pd
 from pathlib import Path
 from tensorflow.python.summary.summary_iterator import summary_iterator
 from modulus_aggregator.constants import RUN_PATH_NOT_FOUND, EXPORT_ERROR, WIDE_DF_NOT_POSSIBLE
-from modulus_aggregator.utils import return_event_accumulator_object
 
 
 @click.group()
@@ -57,6 +56,7 @@ def tensors(models_path, export_pivot, export_training, export_validation, expor
         filter_tensors_type, filtered_tensors_type = [], []
         output_file_name = f'{models_path.name}_tensors'
 
+        # Define tags the user chose to filter
         if export_training or export_validation or export_monitoring:
             if export_training:
                 filter_tensors_type.append('Train')
@@ -65,9 +65,11 @@ def tensors(models_path, export_pivot, export_training, export_validation, expor
             if export_monitoring:
                 filter_tensors_type.append('Monitors')
 
+        # Define name of output file
         for filter_tensor in filter_tensors_type:
             output_file_name = output_file_name + f'_{filter_tensor.lower()}'
         
+        # Create tensors dataframe
         for run in os.listdir(models_path):
             run_path = models_path / run            
             if run_path.is_dir():
@@ -78,15 +80,18 @@ def tensors(models_path, export_pivot, export_training, export_validation, expor
             
         tensor_tags_unique_lst = np.unique(df_tensors.loc[:, 'tag'].values)
 
+        # Check what were the filtered tags and store them in filtered_tensors_type variable
         for filter_tensor in filter_tensors_type:
             for tensor_tag in tensor_tags_unique_lst:
                 if filter_tensor in tensor_tag:
                     filtered_tensors_type.append(filter_tensor)
                     break
 
+        # Compare actually filtered tags with tags the user chose to be filtered and print the difference in both sets
         if set(filter_tensors_type) != set(filtered_tensors_type):
             click.echo(f"The following tensors types were not found in models: {', '.join(list(set(filter_tensors_type) - set(filtered_tensors_type)))}.")
 
+        # Handle data exportation
         if not export_pivot:
             df_tensors.to_csv(models_path / f'{output_file_name}.csv', index=False, sep=';')
         else:
